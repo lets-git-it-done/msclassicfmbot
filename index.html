@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FM Arbitrage</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header>
+        <div class="brand">
+          <i>₥</i>
+          <div>
+            <p>MAPLESTORY CLASSIC WORLD</p>
+            <h1>FM Arbitrage</h1>
+          </div>
+        </div>
+        <nav class="page-nav" aria-label="App pages">
+          <a class="active" href="/">Arbitrage</a>
+          <a href="/monitor.html">FM monitor</a>
+        </nav>
+        <div>
+          <span class="refresh-meta">
+            <small id="updated">Waiting for data</small>
+            <small id="countdown">Next refresh in 1:00</small>
+          </span>
+          <button id="refresh">↻ Refresh data</button>
+        </div>
+      </header>
+
+      <section class="intro">
+        <div>
+          <p>BUY LOW · NPC SELL-BACK</p>
+          <h2>Find listings worth more to an NPC than they cost in the Free Market.</h2>
+        </div>
+        <div class="legend">
+          <span>● FM listing</span>
+          <span>● NPC sell-back value</span>
+        </div>
+      </section>
+
+      <section class="stats" id="stats"></section>
+
+      <section class="controls">
+        <div class="search">⌕ <input id="search" placeholder="Filter item, seller, channel, room…"></div>
+        <select id="profitFilter">
+          <option value="all">All listings</option>
+          <option value="positive">Profitable only</option>
+          <option value="loss">Loss / break-even</option>
+        </select>
+        <select id="channelFilter">
+          <option value="all">All channels</option>
+        </select>
+        <div class="profit-slider">
+          <label for="minTotalProfit">
+            Min total profit per listing:
+            <output id="minTotalProfitValue">Any</output>
+          </label>
+          <input id="minTotalProfit" type="number" step="1" placeholder="Any">
+        </div>
+        <label class="group-toggle">
+          <input id="groupByRoom" type="checkbox">
+          Group profitable listings by room
+        </label>
+        <button id="clear" class="ghost">Clear filters</button>
+      </section>
+
+      <section class="card">
+        <div class="tabletop">
+          <div>
+            <h3>Arbitrage opportunities</h3>
+            <small id="resultCount"></small>
+          </div>
+          <small>Profit = NPC sell-back − FM unit price</small>
+        </div>
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr>
+                <th data-key="item">Item</th>
+                <th data-key="quantity">Qty</th>
+                <th data-key="unitPrice">FM unit price</th>
+                <th data-key="npcValue">NPC sell-back</th>
+                <th data-key="profit">Profit / unit</th>
+                <th data-key="total">Total Profit</th>
+                <th data-key="profitPct">Profit % ↓</th>
+                <th data-key="seenAt">Seen</th>
+                <th data-key="seller">Seller & location</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+        <div id="empty" hidden>No listings match those filters.</div>
+      </section>
+
+      <aside>
+        <b>✓ Source-aware refresh.</b> Ready for permitted snapshots from
+        <a href="https://mesos.watch" target="_blank" rel="noreferrer">mesos.watch</a>
+        and <a href="https://meowdb.com/msclassic" target="_blank" rel="noreferrer">MeowDB</a>.
+        A local NPC sell-back snapshot is embedded and joined automatically; refresh retains the
+        last valid data if source access is unavailable.
+      </aside>
+    </main>
+
+    <dialog id="dialog">
+      <div class="dialoghead">
+        <div>
+          <p>DATA REFRESH</p>
+          <h2>Update marketplace snapshot</h2>
+        </div>
+        <button id="close" aria-label="Close">×</button>
+      </div>
+      <p>
+        Paste the Cookie header from your authorized Mesos Watch session. It stays in this
+        server's memory until rejected or the server stops; it is not saved to disk.
+        Leave the field blank to reuse the current session.
+      </p>
+      <label for="cookieHeader">Mesos Watch Cookie header</label>
+      <input id="cookieHeader" type="password" autocomplete="new-password" spellcheck="false"
+        placeholder="mw_session=…; mw_s=…">
+      <p>Listings refresh automatically every 60 seconds.</p>
+      <div class="actions">
+        <button id="cancel" class="ghost">Cancel</button>
+        <button id="run">Refresh now</button>
+      </div>
+      <small id="message" aria-live="polite"></small>
+    </dialog>
+    <script src="app.js"></script>
+  </body>
+</html>

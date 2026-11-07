@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FM Monitor · FM Arbitrage</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header>
+        <div class="brand">
+          <i>₥</i>
+          <div>
+            <p>MAPLESTORY CLASSIC WORLD</p>
+            <h1>FM Arbitrage</h1>
+          </div>
+        </div>
+        <nav class="page-nav" aria-label="App pages">
+          <a href="/">Arbitrage</a>
+          <a class="active" href="/monitor.html">FM monitor</a>
+        </nav>
+        <div class="monitor-status">
+          <small id="monitorStatus" aria-live="polite">Monitor stopped</small>
+          <button id="startMonitor" type="button">Choose MapleStory window</button>
+          <button id="stopMonitor" class="ghost" type="button" disabled>Stop</button>
+        </div>
+      </header>
+
+      <section class="intro">
+        <div>
+          <p>LOCAL SCREEN MONITOR</p>
+          <h2>Watch a Free Market dialog for profitable stock.</h2>
+          <p class="monitor-help">
+            Choose the MapleStory window in the browser's screen-share picker. Video is processed
+            locally in this tab and is not uploaded or saved. OCR can misread text; check detected
+            rows and edit their values before relying on an alert. The monitor scans about every
+            1.2 seconds; items must be absent in two confirmed scans before they are removed.
+            Unseen items stay listed only while they meet the profit threshold.
+          </p>
+        </div>
+      </section>
+
+      <section class="monitor-controls">
+        <label for="minAlertProfit">Alert when estimated total profit is at least (mesos)</label>
+        <input id="minAlertProfit" type="number" min="0" step="1" value="1">
+        <p>Profit estimate = (NPC sell-back − shop price) × available stock.</p>
+      </section>
+
+      <section class="monitor-preview card">
+        <div class="tabletop">
+          <div>
+            <h3>Selected window preview</h3>
+            <small id="scanStatus">Screen capture is off.</small>
+          </div>
+        </div>
+        <div class="video-frame">
+          <video id="screenPreview" autoplay muted playsinline></video>
+          <div id="dialogCropOverlay" aria-hidden="true"></div>
+        </div>
+        <canvas id="scanCanvas" hidden></canvas>
+      </section>
+
+      <details class="crop-settings">
+        <summary>Adjust dialog crop if the red outline misses the Free Market window</summary>
+        <p>Crop positions are percentages of the shared screen or window. Defaults match FM_Dialog.PNG.</p>
+        <div class="crop-fields">
+          <label>Left % <input id="cropLeft" type="number" min="0" max="95" step="0.5" value="32"></label>
+          <label>Top % <input id="cropTop" type="number" min="0" max="95" step="0.5" value="12.5"></label>
+          <label>Width % <input id="cropWidth" type="number" min="5" max="100" step="0.5" value="38.5"></label>
+          <label>Height % <input id="cropHeight" type="number" min="5" max="100" step="0.5" value="61"></label>
+        </div>
+      </details>
+
+      <section class="card monitor-results">
+        <div class="tabletop">
+          <div>
+            <h3>Free Market stock and profit</h3>
+            <small id="alertSummary">No qualifying alerts.</small>
+          </div>
+          <small id="lastScan">Waiting for a scan</small>
+        </div>
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Status</th>
+                <th>Stock</th>
+                <th>Shop price</th>
+                <th>NPC value</th>
+                <th>Profit / item</th>
+                <th>Total potential</th>
+              </tr>
+            </thead>
+            <tbody id="monitorRows"></tbody>
+          </table>
+        </div>
+        <div id="monitorEmpty" hidden>No items detected yet.</div>
+      </section>
+
+      <details class="monitor-text">
+        <summary>OCR text for troubleshooting</summary>
+        <pre id="recognizedText">No screen text scanned yet.</pre>
+      </details>
+    </main>
+    <script src="/node_modules/tesseract.js/dist/tesseract.min.js"></script>
+    <script src="monitor.js"></script>
+  </body>
+</html>

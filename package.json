@@ -1,0 +1,22 @@
+{
+  "name": "fm-npc-arbitrage",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "pm2 start server.js --name fm-npc-arbitrage",
+    "stop": "pm2 stop fm-npc-arbitrage",
+    "restart": "pm2 restart fm-npc-arbitrage"
+  },
+  "dependencies": {
+    "@tesseract.js-data/eng": "^1.0.0",
+    "puppeteer": "^25.16.0",
+    "puppeteer-core": "^25.16.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "tesseract.js": "^7.0.0"
+  },
+  "allowScripts": {
+    "puppeteer@25.16.0": true,
+    "puppeteer-core@25.16.0": true
+  }
+}
