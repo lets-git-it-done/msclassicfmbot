@@ -259,7 +259,7 @@ function parseMarketText(text, visuallySold = new Set()) {
       .match(/\d[\d,]*/g)
       ?.map(value => Number(value.replace(/,/g, '')))
       .filter(Number.isFinite) || [];
-    const offerMatch = rowText.match(/(\d[\d,]*)\s+for\s+(\d[\d,]*)\s+(?:mesos?|each)/i);
+    const offerMatch = rowText.match(/(\d[\d,]*)\s*for\s*(\d[\d,]*)\s+(?:mesos?|each)/i);
     const stockMatch = rowText.match(/(?:stock|qty|quantity|x)\s*[:=]?\s*(\d[\d,]*)/i);
     const priceMatch = rowText.match(/(?:price|mesos?|each|ea)\s*[:=]?\s*(\d[\d,]*)/i);
     const stock = status === 'available'
