@@ -26,6 +26,7 @@ const npcCatalog = snapshot.items
   .map(item => ({ id: Number(item.id), name: item.name, npcSellBack: item.npcSellBack }));
 const marketApi = 'https://api.mesos.watch';
 let sessionCookieHeader = null;
+let sessionUserAgent = null;
 
 const ago = unix => {
   const seconds = Math.max(0, Math.round(Date.now() / 1000 - unix));
@@ -91,6 +92,7 @@ async function setSessionCookie(request, response) {
     }
 
     sessionCookieHeader = cookieHeader;
+    sessionUserAgent = request.headers['user-agent'] || null;
     sendJson(response, 200, { ok: true });
   } catch (error) {
     sendJson(response, error.statusCode || 400, { error: error.message });
@@ -110,7 +112,7 @@ async function liveListings() {
       accept: 'application/json',
       origin: 'https://mesos.watch',
       referer: 'https://mesos.watch/',
-      'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36',
+      'user-agent': sessionUserAgent || 'Mozilla/5.0',
       cookie: sessionCookieHeader
     }
   });
@@ -118,6 +120,7 @@ async function liveListings() {
 
   if (response.status === 401) {
     sessionCookieHeader = null;
+    sessionUserAgent = null;
     const error = new Error('Mesos Watch rejected the Cookie header. Paste a renewed one to continue.');
     error.statusCode = 401;
     error.needsCookie = true;
