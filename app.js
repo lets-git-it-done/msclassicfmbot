@@ -1,9 +1,20 @@
 let rows = [];
-let sort = 'profitPct';
+let sort = 'total';
 let direction = -1;
 let groupByRoom = false;
 let minimumTotalProfit = null;
 const soldListings = new Set();
+const sortLabels = {
+  item: 'item',
+  quantity: 'quantity',
+  unitPrice: 'FM unit price',
+  npcValue: 'NPC sell-back',
+  profit: 'profit per unit',
+  total: 'total profit',
+  profitPct: 'profit %',
+  seenAt: 'seen time',
+  seller: 'seller'
+};
 
 const query = selector => document.querySelector(selector);
 const format = value => Math.round(value).toLocaleString();
@@ -74,6 +85,12 @@ function renderListings() {
       (minimumTotalProfit === null || listing.total >= minimumTotalProfit)
     );
 
+  document.querySelectorAll('th[data-key]').forEach(header => {
+    header.setAttribute('aria-sort', header.dataset.key === sort
+      ? direction === 1 ? 'ascending' : 'descending'
+      : 'none');
+  });
+
   visibleRows.sort((left, right) =>
     typeof left[sort] === 'string'
       ? direction * left[sort].localeCompare(right[sort])
@@ -88,7 +105,7 @@ function renderListings() {
     `<article class="stat"><small>BEST PROFIT RATE</small><b class="green">${best ? best.profitPct.toFixed(1) : 0}%</b></article>` +
     `<article class="stat"><small>EST. TOTAL UPSIDE</small><b>${format(profitable.reduce((sum, listing) => sum + listing.total, 0))} mesos</b></article>`;
   query('#resultCount').textContent =
-    `${visibleRows.length} listing${visibleRows.length === 1 ? '' : 's'} · sorted by ${sort === 'profitPct' ? 'profit %' : sort}`;
+    `${visibleRows.length} listing${visibleRows.length === 1 ? '' : 's'} · sorted by ${sortLabels[sort]} (${direction === 1 ? 'ascending' : 'descending'})`;
   if (!groupByRoom) {
     query('#rows').innerHTML = visibleRows.map(renderListingRow).join('');
   } else {
