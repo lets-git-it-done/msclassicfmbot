@@ -17,6 +17,12 @@ let scanning = false;
 let scanInProgress = false;
 let audioContext = null;
 let scanTimer = null;
+let backlogCaptureTimer = null;
+let backlogScreenshots = [];
+let backlogProcessing = false;
+let backlogCaptureInProgress = false;
+let backlogSuppressed = false;
+let backlogOcrWorkers = null;
 
 const feeNotice = 'Please be aware that a 3% fee will be deducted from sales.';
 
@@ -192,7 +198,7 @@ function prepareDialogImages(crop) {
   );
 }
 
-function detectLighterRows(ocrLines) {
+function detectLighterRows(ocrLines, sourceCanvas = itemCanvas, sourceContext = itemContext) {
   const rows = (ocrLines || []).flatMap(line => {
     const text = normalizedText(line.text || '');
     const item = [...catalogById.values()]
@@ -203,11 +209,11 @@ function detectLighterRows(ocrLines) {
     const { x0, y0, x1, y1 } = line.bbox;
     const left = Math.max(0, Math.floor(x0));
     const top = Math.max(0, Math.floor(y0));
-    const width = Math.min(itemCanvas.width - left, Math.max(1, Math.ceil(x1 - x0)));
-    const height = Math.min(itemCanvas.height - top, Math.max(1, Math.ceil(y1 - y0)));
+    const width = Math.min(sourceCanvas.width - left, Math.max(1, Math.ceil(x1 - x0)));
+    const height = Math.min(sourceCanvas.height - top, Math.max(1, Math.ceil(y1 - y0)));
     if (width <= 0 || height <= 0) return [];
 
-    const pixels = itemContext.getImageData(left, top, width, height).data;
+    const pixels = sourceContext.getImageData(left, top, width, height).data;
     let luminance = 0;
     for (let index = 0; index < pixels.length; index += 4) {
       luminance += 0.2126 * pixels[index] + 0.7152 * pixels[index + 1] + 0.0722 * pixels[index + 2];
@@ -321,22 +327,191 @@ function reconcileScannedItems(detectedItems) {
 async function loadOcrWorker() {
   if (ocrWorker) return ocrWorker;
   query('#scanStatus').textContent = 'Loading local OCR engine…';
-  ocrWorker = await Tesseract.createWorker('eng', 1, {
-    workerPath: '/node_modules/tesseract.js/dist/worker.min.js',
-    corePath: '/node_modules/tesseract.js-core/tesseract-core.wasm.js',
-    langPath: '/node_modules/@tesseract.js-data/eng/4.0.0',
-    gzip: true,
-    logger: progress => {
-      if (progress.status === 'recognizing text') {
-        query('#scanStatus').textContent = `Scanning dialog… ${Math.round(progress.progress * 100)}%`;
-      }
+  ocrWorker = await createOcrWorker(progress => {
+    if (progress.status === 'recognizing text') {
+      query('#scanStatus').textContent = `Scanning dialog… ${Math.round(progress.progress * 100)}%`;
     }
   });
   return ocrWorker;
 }
 
+function createOcrWorker(logger = () => {}) {
+  return Tesseract.createWorker('eng', 1, {
+    workerPath: '/node_modules/tesseract.js/dist/worker.min.js',
+    corePath: '/node_modules/tesseract.js-core/tesseract-core.wasm.js',
+    langPath: '/node_modules/@tesseract.js-data/eng/4.0.0',
+    gzip: true,
+    logger
+  });
+}
+
+function loadBacklogOcrWorkers() {
+  if (!backlogOcrWorkers) {
+    const workerCount = Math.min(2, Math.max(1, navigator.hardwareConcurrency || 2));
+    backlogOcrWorkers = Promise.all(
+      Array.from({ length: workerCount }, () => createOcrWorker())
+    );
+  }
+  return backlogOcrWorkers;
+}
+
+function startBacklogCapture() {
+  if (backlogCaptureTimer || backlogSuppressed) return;
+  backlogCaptureTimer = setInterval(() => {
+    captureBacklogScreenshot().catch(error => {
+      query('#scanStatus').textContent = `Backlog capture failed: ${error.message}`;
+      stopBacklogCapture(true);
+    });
+  }, 1000);
+  query('#scanStatus').textContent = 'Free Market detected · capturing an OCR backlog every second.';
+}
+
+function stopBacklogCapture(suppressUntilLiveScan = false) {
+  if (backlogCaptureTimer) clearInterval(backlogCaptureTimer);
+  backlogCaptureTimer = null;
+  backlogScreenshots = [];
+  if (suppressUntilLiveScan) backlogSuppressed = true;
+}
+
+async function captureBacklogScreenshot() {
+  if (
+    !scanning ||
+    !backlogCaptureTimer ||
+    backlogCaptureInProgress ||
+    video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA
+  ) return;
+
+  backlogCaptureInProgress = true;
+  try {
+    const crop = getDialogCrop(video.videoWidth, video.videoHeight);
+    const screenshot = document.createElement('canvas');
+    screenshot.width = crop.width;
+    screenshot.height = crop.height;
+    screenshot.getContext('2d').drawImage(
+      video,
+      crop.x, crop.y, crop.width, crop.height,
+      0, 0, crop.width, crop.height
+    );
+    const blob = await new Promise(resolve => screenshot.toBlob(resolve, 'image/png'));
+    if (!blob) throw new Error('Could not encode the captured dialog image.');
+    if (!scanning || !backlogCaptureTimer) return;
+
+    backlogScreenshots.push({ blob, capturedAt: Date.now() });
+    query('#scanStatus').textContent =
+      `Free Market detected · ${backlogScreenshots.length} screenshot${backlogScreenshots.length === 1 ? '' : 's'} queued for OCR.`;
+    processBacklogScreenshots();
+  } finally {
+    backlogCaptureInProgress = false;
+  }
+}
+
+async function recognizeBacklogScreenshot(blob) {
+  const dialogImage = await createImageBitmap(blob);
+  try {
+    const itemCrop = {
+      x: Math.round(dialogImage.width * 0.015),
+      y: Math.round(dialogImage.height * 0.335),
+      width: Math.round(dialogImage.width * 0.435),
+      height: Math.round(dialogImage.height * 0.525)
+    };
+    const itemImage = document.createElement('canvas');
+    itemImage.width = itemCrop.width;
+    itemImage.height = itemCrop.height;
+    const itemImageContext = itemImage.getContext('2d', { willReadFrequently: true });
+    itemImageContext.drawImage(
+      dialogImage,
+      itemCrop.x, itemCrop.y, itemCrop.width, itemCrop.height,
+      0, 0, itemCrop.width, itemCrop.height
+    );
+
+    const feeImage = document.createElement('canvas');
+    feeImage.width = Math.round(dialogImage.width * 0.44);
+    feeImage.height = Math.round(dialogImage.height * 0.12);
+    feeImage.getContext('2d').drawImage(
+      dialogImage,
+      Math.round(dialogImage.width * 0.01),
+      Math.round(dialogImage.height * 0.875),
+      feeImage.width, feeImage.height,
+      0, 0, feeImage.width, feeImage.height
+    );
+
+    const [feeWorker, itemWorker] = await loadBacklogOcrWorkers();
+    let feeResult;
+    let itemResult;
+    if (itemWorker) {
+      [feeResult, itemResult] = await Promise.all([
+        feeWorker.recognize(feeImage),
+        itemWorker.recognize(itemImage)
+      ]);
+    } else {
+      feeResult = await feeWorker.recognize(feeImage);
+      const feeText = normalizedText(feeResult.data.text);
+      if (!feeText.includes(normalizedText(feeNotice))) {
+        return { dialogDetected: false, feeText };
+      }
+      itemResult = await feeWorker.recognize(itemImage);
+    }
+    const feeText = normalizedText(feeResult.data.text);
+    const dialogDetected = feeText.includes(normalizedText(feeNotice));
+    if (!dialogDetected) return { dialogDetected, feeText };
+
+    const visuallySold = detectLighterRows(itemResult.data.lines, itemImage, itemImageContext);
+    return {
+      dialogDetected,
+      feeText,
+      itemText: itemResult.data.text,
+      detectedItems: parseMarketText(itemResult.data.text, visuallySold)
+    };
+  } finally {
+    dialogImage.close();
+  }
+}
+
+async function processBacklogScreenshots() {
+  if (backlogProcessing) return;
+  backlogProcessing = true;
+  try {
+    while (scanning && backlogCaptureTimer && backlogScreenshots.length) {
+      while (scanInProgress && scanning && backlogCaptureTimer) {
+        await new Promise(resolve => setTimeout(resolve, 25));
+      }
+      if (!scanning || !backlogCaptureTimer) break;
+
+      const screenshot = backlogScreenshots[0];
+      const result = await recognizeBacklogScreenshot(screenshot.blob);
+      if (!scanning || !backlogCaptureTimer) {
+        backlogScreenshots = [];
+        break;
+      }
+      backlogScreenshots.shift();
+      if (!result.dialogDetected) {
+        query('#recognizedText').textContent = `Backlog fee-area OCR:\n${result.feeText || '(no text recognized)'}`;
+        query('#scanStatus').textContent = 'Backlog OCR no longer detects the Free Market dialog; remaining screenshots discarded.';
+        query('#monitorStatus').textContent = 'Monitoring locally; screenshot backlog stopped after dialog disappeared.';
+        stopBacklogCapture(true);
+        break;
+      }
+
+      reconcileScannedItems(result.detectedItems);
+      query('#recognizedText').textContent = `Backlog item list:\n${result.itemText || '(no item text recognized)'}`;
+      query('#lastScan').textContent = `Last scan: ${new Date(screenshot.capturedAt).toLocaleTimeString()}`;
+      renderItems();
+    }
+  } catch (error) {
+    query('#scanStatus').textContent = `Backlog OCR failed: ${error.message}`;
+    stopBacklogCapture(true);
+  } finally {
+    backlogProcessing = false;
+  }
+}
+
 async function scanFrame() {
-  if (!scanning || scanInProgress || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
+  if (
+    !scanning ||
+    scanInProgress ||
+    backlogProcessing ||
+    video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA
+  ) return;
   scanInProgress = true;
   try {
     canvas.width = video.videoWidth;
@@ -351,9 +526,17 @@ async function scanFrame() {
     const expectedFeeText = normalizedText(feeNotice);
     const marketDialogDetected = feeText.includes(expectedFeeText);
     if (!marketDialogDetected) {
+      stopBacklogCapture();
+      backlogSuppressed = false;
+      query('#monitorStatus').textContent = 'Monitoring locally; Free Market dialog not detected.';
       query('#recognizedText').textContent = `Dialog fee-area OCR:\n${feeResult.data.text || '(no text recognized)'}`;
       query('#scanStatus').textContent = 'Free Market dialog not confirmed. Adjust the crop until the red outline covers the dialog and fee notice.';
       return;
+    }
+    if (!backlogSuppressed) {
+      startBacklogCapture();
+      query('#monitorStatus').textContent =
+        `Monitoring locally; polling every ${query('#scanInterval').value.trim()} ms.`;
     }
 
     const itemResult = await worker.recognize(itemCanvas);
@@ -433,6 +616,8 @@ function stopMonitor() {
   scanning = false;
   if (scanTimer) clearInterval(scanTimer);
   scanTimer = null;
+  stopBacklogCapture();
+  backlogSuppressed = false;
   if (screenStream) {
     for (const track of screenStream.getTracks()) track.stop();
   }

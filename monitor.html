@@ -36,8 +36,11 @@
             locally in this tab and is not uploaded or saved. Screen capture requests up to 30 FPS;
             OCR can misread text, so check detected rows and edit their values before relying on an
             alert. The monitor polls every 700 ms by default, close to the measured time for both
-            OCR passes; adjust the interval for your system. Items must be absent in two confirmed
-            scans before they are removed.
+            OCR passes; adjust the interval for your system. Once detected, it also queues one local
+            dialog screenshot per second for OCR and discards remaining images when a queued scan
+            no longer detects the dialog. Backlog OCR uses two workers to read fee and item crops in
+            parallel when multiple CPU cores are available. Items must be absent in two confirmed
+            scans before removal.
             Unseen items stay listed only while they meet the profit threshold.
           </p>
         </div>
