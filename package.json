@@ -3,9 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "start": "pm2 start server.js --name fm-npc-arbitrage",
-    "stop": "pm2 stop fm-npc-arbitrage",
-    "restart": "pm2 restart fm-npc-arbitrage"
+    "start": "node server.js"
   },
   "dependencies": {
     "@tesseract.js-data/eng": "^1.0.0",

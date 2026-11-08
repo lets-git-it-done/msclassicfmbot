@@ -208,7 +208,7 @@ async function handleRequest(request, response) {
 }
 
 const port = Number(process.env.PORT) || 1270;
-http.createServer(handleRequest).listen(port, '127.0.0.1', () => {
-  console.log(`http://127.0.0.1:${port}`);
+http.createServer(handleRequest).listen(port, '0.0.0.0', () => {
+  console.log(`Listening on port ${port}`);
   console.log('Paste the Mesos Watch Cookie header in the app when prompted. It is kept in memory only.');
 });
