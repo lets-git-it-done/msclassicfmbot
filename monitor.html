@@ -33,9 +33,10 @@
           <h2>Watch a Free Market dialog for profitable stock.</h2>
           <p class="monitor-help">
             Choose the MapleStory window in the browser's screen-share picker. Video is processed
-            locally in this tab and is not uploaded or saved. OCR can misread text; check detected
-            rows and edit their values before relying on an alert. The monitor scans about every
-            1.2 seconds; items must be absent in two confirmed scans before they are removed.
+            locally in this tab and is not uploaded or saved. Screen capture requests up to 30 FPS;
+            OCR can misread text, so check detected rows and edit their values before relying on an
+            alert. The monitor scans about every 1.2 seconds; items must be absent in two confirmed
+            scans before they are removed.
             Unseen items stay listed only while they meet the profit threshold.
           </p>
         </div>
@@ -96,7 +97,7 @@
             <tbody id="monitorRows"></tbody>
           </table>
         </div>
-        <div id="monitorEmpty" hidden>No items detected yet.</div>
+        <div id="monitorEmpty">No items detected yet.</div>
       </section>
 
       <details class="monitor-text">

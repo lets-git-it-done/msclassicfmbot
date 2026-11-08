@@ -17,11 +17,6 @@ let scanning = false;
 let scanInProgress = false;
 let audioContext = null;
 
-const initialItems = [
-  { name: 'Unagi', status: 'sold-out', stock: 0, shopPrice: null },
-  { name: 'Pure Water', status: 'available', stock: 70, shopPrice: 1200 },
-  { name: 'Blue Bamboo Hat', status: 'sold', stock: 0, shopPrice: null }
-];
 const feeNotice = 'Please be aware that a 3% fee will be deducted from sales.';
 
 function escapeHtml(value) {
@@ -386,7 +381,7 @@ async function startMonitor() {
 
   try {
     screenStream = await navigator.mediaDevices.getDisplayMedia({
-      video: { frameRate: { ideal: 5, max: 5 } },
+      video: { frameRate: { ideal: 30, max: 30 } },
       audio: false
     });
     video.srcObject = screenStream;
@@ -434,10 +429,6 @@ async function initialize() {
     if (!response.ok) throw new Error(`Catalog request failed with HTTP ${response.status}`);
     const catalog = await response.json();
     for (const item of catalog) catalogById.set(item.id, item);
-    for (const item of initialItems) {
-      const catalogItem = catalog.find(entry => entry.name === item.name);
-      if (catalogItem) monitorItems.set(catalogItem.id, { ...catalogItem, itemId: catalogItem.id, ...item });
-    }
     renderItems();
   } catch (error) {
     query('#monitorStatus').textContent = `Could not load NPC values: ${error.message}`;
