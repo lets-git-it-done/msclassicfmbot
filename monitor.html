@@ -35,8 +35,8 @@
             Choose the MapleStory window in the browser's screen-share picker. Video is processed
             locally in this tab and is not uploaded or saved. Screen capture requests up to 30 FPS;
             OCR can misread text, so check detected rows and edit their values before relying on an
-            alert. The monitor scans about every 1.2 seconds; items must be absent in two confirmed
-            scans before they are removed.
+            alert. The monitor polls the screen every 100 ms by default; items must be absent in two
+            confirmed scans before they are removed.
             Unseen items stay listed only while they meet the profit threshold.
           </p>
         </div>
@@ -45,7 +45,12 @@
       <section class="monitor-controls">
         <label for="minAlertProfit">Alert when estimated total profit is at least (mesos)</label>
         <input id="minAlertProfit" type="number" min="0" step="1" value="1">
+        <label for="scanInterval">Rescan frequency (ms)</label>
+        <input id="scanInterval" type="text" inputmode="numeric" value="100" autocomplete="off">
         <p>Profit estimate = (NPC sell-back − shop price) × available stock.</p>
+        <p id="scanIntervalStatus" role="status" aria-live="polite">
+          OCR scans run one at a time, so recognition may take longer than the polling interval.
+        </p>
       </section>
 
       <section class="monitor-preview card">

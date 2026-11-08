@@ -16,6 +16,7 @@ let ocrWorker = null;
 let scanning = false;
 let scanInProgress = false;
 let audioContext = null;
+let scanTimer = null;
 
 const feeNotice = 'Please be aware that a 3% fee will be deducted from sales.';
 
@@ -374,6 +375,9 @@ async function scanFrame() {
 }
 
 async function startMonitor() {
+  const interval = getScanInterval();
+  if (interval === null) return;
+
   if (!navigator.mediaDevices?.getDisplayMedia) {
     query('#monitorStatus').textContent = 'Screen capture is not supported in this browser.';
     return;
@@ -392,10 +396,10 @@ async function startMonitor() {
     scanning = true;
     query('#startMonitor').disabled = true;
     query('#stopMonitor').disabled = false;
-    query('#monitorStatus').textContent = 'Monitoring locally; scans run about every 1.2 seconds.';
+    query('#monitorStatus').textContent = `Monitoring locally; polling every ${interval} ms.`;
     query('#scanStatus').textContent = 'Waiting for first scan…';
+    scanTimer = setInterval(scanFrame, interval);
     await scanFrame();
-    scanTimer = setInterval(scanFrame, 1200);
     screenStream.getVideoTracks()[0].addEventListener('ended', stopMonitor);
   } catch (error) {
     if (screenStream) stopMonitor();
@@ -403,7 +407,27 @@ async function startMonitor() {
   }
 }
 
-let scanTimer = null;
+function getScanInterval() {
+  const input = query('#scanInterval');
+  const status = query('#scanIntervalStatus');
+  const value = input.value.trim();
+  if (!/^[1-9]\d*$/.test(value) || Number(value) > 2_147_483_647) {
+    status.textContent = 'Enter a whole number of milliseconds greater than 0.';
+    return null;
+  }
+
+  status.textContent = 'OCR scans run one at a time, so recognition may take longer than the polling interval.';
+  return Number(value);
+}
+
+function updateScanInterval() {
+  const interval = getScanInterval();
+  if (interval === null || !scanning) return;
+
+  if (scanTimer) clearInterval(scanTimer);
+  scanTimer = setInterval(scanFrame, interval);
+  query('#monitorStatus').textContent = `Monitoring locally; polling every ${interval} ms.`;
+}
 
 function stopMonitor() {
   scanning = false;
@@ -437,6 +461,7 @@ async function initialize() {
 
 query('#startMonitor').addEventListener('click', startMonitor);
 query('#stopMonitor').addEventListener('click', stopMonitor);
+query('#scanInterval').addEventListener('input', updateScanInterval);
 query('#minAlertProfit').addEventListener('input', () => {
   const minimumProfit = Math.max(0, Number(query('#minAlertProfit').value) || 0);
   for (const [itemId, item] of monitorItems) {
