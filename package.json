@@ -9,14 +9,6 @@
   },
   "dependencies": {
     "@tesseract.js-data/eng": "^1.0.0",
-    "puppeteer": "^25.16.0",
-    "puppeteer-core": "^25.16.0",
-    "puppeteer-extra": "^3.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2",
     "tesseract.js": "^7.0.0"
-  },
-  "allowScripts": {
-    "puppeteer@25.16.0": true,
-    "puppeteer-core@25.16.0": true
   }
 }
